@@ -1,0 +1,10 @@
+.modal {
+    width: 200px;
+    height: 100px;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background-color: green;
+}

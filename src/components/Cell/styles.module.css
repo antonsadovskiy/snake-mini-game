@@ -1,0 +1,12 @@
+.cell {
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.apple {
+    width: 40px;
+    height: 40px;
+    background-color: red;
+}
