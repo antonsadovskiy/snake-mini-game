@@ -1,14 +1,18 @@
 import "./index.css";
 import { FieldCell } from "./components/Cell";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./styles.module.css";
 import { FailedModal } from "./components/FailedModal";
+import { v4 as uuid } from "uuid";
+import { Score } from "./components/Score";
 
 const ROWS = 10;
 const COLUMNS = 10;
 
 const START_SNAKE_POS_X = 4;
 const START_SNAKE_POS_Y = 7;
+
+export const START_SNAKE_LENGTH = 3;
 
 enum DirectionsEnum {
   TOP = "TOP",
@@ -17,15 +21,22 @@ enum DirectionsEnum {
   LEFT = "LEFT",
 }
 
+type CoordsType = {
+  x: number;
+  y: number;
+};
+
 function App() {
   const arrayRows = Array.from({ length: ROWS }, () => {});
   const arrayColumns = Array.from({ length: COLUMNS }, () => {});
 
   const [isFailed, setIsFailed] = useState(false);
 
-  const [snakeLength, setSnakeLength] = useState(3);
+  const [snakeLength, setSnakeLength] = useState(START_SNAKE_LENGTH);
 
-  const [applesList, setApplesList] = useState<{ x: number; y: number }[]>([]);
+  const [applesList, setApplesList] = useState<
+    { id: string; x: number; y: number }[]
+  >([]);
 
   const [direction, setDirection] = useState<DirectionsEnum>(
     DirectionsEnum.TOP,
@@ -36,27 +47,35 @@ function App() {
     y: START_SNAKE_POS_Y,
   });
 
+  // const [turnsCoors, setTurnsCoors] = useState<CoordsType[]>([]);
+
   const snake = useMemo(() => {
     const snakeArray = Array.from({ length: snakeLength }, () => {});
 
-    return snakeArray.map((_, index) => {
-      if (index === 0) {
-        return { x: snakeHeadPos.x, y: snakeHeadPos.y };
+    const snake: CoordsType[] = [];
+
+    for (let i = 0; i < snakeArray.length; i++) {
+      if (i === 0) {
+        snake.push({ x: snakeHeadPos.x, y: snakeHeadPos.y });
       } else {
+        const prevElem = snake[i - 1];
+
         if (direction === DirectionsEnum.LEFT) {
-          return { x: snakeHeadPos.x + 1, y: snakeHeadPos.y };
+          snake.push({ x: prevElem.x + 1, y: prevElem.y });
         }
         if (direction === DirectionsEnum.TOP) {
-          return { x: snakeHeadPos.x, y: snakeHeadPos.y + 1 };
+          snake.push({ x: prevElem.x, y: prevElem.y + 1 });
         }
         if (direction === DirectionsEnum.RIGHT) {
-          return { x: snakeHeadPos.x - 1, y: snakeHeadPos.y };
+          snake.push({ x: prevElem.x - 1, y: prevElem.y });
         }
         if (direction === DirectionsEnum.BOTTOM) {
-          return { x: snakeHeadPos.x, y: snakeHeadPos.y - 1 };
+          snake.push({ x: prevElem.x, y: prevElem.y - 1 });
         }
       }
-    });
+    }
+
+    return snake;
   }, [snakeHeadPos, direction, snakeLength]);
 
   useEffect(() => {
@@ -73,7 +92,7 @@ function App() {
           return prevState;
         }
 
-        return [...prevState, { x: newAppleX, y: newAppleY }];
+        return [...prevState, { id: uuid(), x: newAppleX, y: newAppleY }];
       });
     }, 3000);
 
@@ -140,38 +159,54 @@ function App() {
     });
   }, []);
 
-  const field = useMemo(() => {
-    return (
-      <div className={styles.field}>
-        {isFailed && <FailedModal />}
-        {arrayRows.map((_, yIndex) => {
-          return (
-            <div className={styles.row} key={yIndex}>
-              {arrayColumns.map((_, xIndex) => {
-                const isAnySnakePieceOnThisCell = snake.find(
-                  (piece) => piece?.x === xIndex + 1 && piece.y === yIndex + 1,
-                );
+  const eatAppleHandler = useCallback(
+    (appleId?: string) => {
+      if (appleId) {
+        setSnakeLength((prevState) => prevState + 1);
+      }
+      setApplesList(applesList.filter((apple) => apple.id !== appleId));
+    },
+    [applesList],
+  );
 
-                const apple = applesList.find(
-                  (apple) => apple.y === yIndex + 1 && apple.x === xIndex + 1,
-                );
+  return (
+    <div className={styles.container}>
+      <div className={styles.game}>
+        <div className={styles.field}>
+          {isFailed && <FailedModal />}
+          {arrayRows.map((_, yIndex) => {
+            return (
+              <div className={styles.row} key={yIndex}>
+                {arrayColumns.map((_, xIndex) => {
+                  const isAnySnakePieceOnThisCell = snake.find(
+                    (piece) =>
+                      piece?.x === xIndex + 1 && piece?.y === yIndex + 1,
+                  );
 
-                return (
-                  <FieldCell
-                    key={xIndex}
-                    isSnakeOnThisCell={!!isAnySnakePieceOnThisCell}
-                    isAppleOnThisCell={!!apple}
-                  />
-                );
-              })}
-            </div>
-          );
-        })}
+                  const apple = applesList.find(
+                    (apple) => apple.y === yIndex + 1 && apple.x === xIndex + 1,
+                  );
+
+                  const isSnakeHeadOnThisCell = snakeHeadPos.x === xIndex + 1 && snakeHeadPos.y === yIndex + 1
+
+                  return (
+                    <FieldCell
+                      key={xIndex}
+                      isSnakeOnThisCell={!!isAnySnakePieceOnThisCell}
+                      isSnakeHeadOnThisCell={isSnakeHeadOnThisCell}
+                      isAppleOnThisCell={!!apple}
+                      eatAppleHandler={() => eatAppleHandler(apple?.id)}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    );
-  }, [isFailed, arrayRows, arrayColumns, snake, applesList]);
-
-  return <div className={styles.game}>{field}</div>;
+      <Score score={snakeLength} />
+    </div>
+  );
 }
 
 export default App;
